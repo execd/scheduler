@@ -1,52 +1,28 @@
+pub mod event;
+mod model;
+pub mod opt;
+pub mod store;
+
+use self::event::{handle_request, NatsPublishActor};
+use self::store::Store;
 use actix::*;
-use serde::*;
-use std::collections::HashMap;
+use futures::prelude::*;
+use nitox::{commands::*, NatsClient, NatsError};
+use std::rc::Rc;
 
-#[serde(rename_all = "camelCase")]
-#[derive(Deserialize, Debug, Clone)]
-pub struct JobRequest {
-    branch: String,
-    ref_id: String,
-    repo_name: String,
-    repo_url: String,
-    image: String,
-    init: String,
-    metadata: Option<HashMap<String, String>>,
-}
+pub fn initialize(
+    future_client: impl Future<Item = NatsClient, Error = NatsError> + 'static,
+    subject: String,
+) -> impl Future<Item = (), Error = NatsError> + 'static {
+    let store: Store = Default::default();
+    let addr = store.start();
 
-pub enum StoreMessage {
-    CreateJob(JobRequest),
-    GetJob(String),
-}
-
-impl actix::Message for StoreMessage {
-    type Result = Option<JobRequest>;
-}
-
-pub struct Store {
-    data: HashMap<String, JobRequest>,
-}
-
-impl Store {
-    pub fn new() -> Store{
-        Store { data : HashMap::new() }
-    }
-}
-
-impl Actor for Store {
-    type Context = Context<Self>;
-}
-
-impl Handler<StoreMessage> for Store {
-    type Result = Option<JobRequest>;
-
-    fn handle(&mut self, msg: StoreMessage, ctx: &mut Context<Self>) -> Self::Result {
-        match msg {
-            StoreMessage::CreateJob(req) => {
-                self.data.insert(req.ref_id.to_owned(), req.clone());
-                Option::from(req)
-            }
-            StoreMessage::GetJob(id) => self.data.get(&id).map(|job_request| job_request.clone()),
-        }
-    }
+    future_client.and_then(move |client| {
+        let c = Rc::new(client);
+        let publish = NatsPublishActor::new(c.clone());
+        let publish_addr = Rc::new(publish.start());
+        let subscribe_command = SubCommand::builder().subject(subject).build().unwrap();
+        c.subscribe(subscribe_command)
+            .and_then(move |message_stream| handle_request(message_stream, addr, publish_addr))
+    })
 }
