@@ -4,7 +4,6 @@ extern crate serde_json;
 use super::model::{JobRequest, Response, ResponseType};
 use actix::*;
 use futures::{future::ok, prelude::*};
-use log::error;
 use nitox::{commands::*, NatsClient, NatsClientOptions, NatsError};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -67,17 +66,23 @@ pub fn connect_to_nats(nats_addr: String) -> impl Future<Item = NatsClient, Erro
         .map_err(move |e| panic!("Failed to connect to {} ! Cause: {}", nats_addr, e))
 }
 
-pub fn handle_request(
+pub fn handle_request<T>(
     message_stream: impl Stream<Item = nitox::commands::Message, Error = NatsError> + 'static,
-    publish_addr: Arc<Addr<NatsPublishActor>>,
-) -> impl Future<Item = (), Error = NatsError> + 'static {
+    publish_addr: Arc<Addr<T>>,
+) -> impl Future<Item = (), Error = NatsError> + 'static
+where
+    T: Handler<NatsMessage, Result = ()> + Actor<Context = Context<T>>,
+{
     message_stream.for_each(move |msg| {
         decode_message(msg, &publish_addr);
         ok(())
     })
 }
 
-fn decode_message(msg: nitox::commands::Message, publish_addr: &Arc<Addr<NatsPublishActor>>) {
+fn decode_message<T>(msg: nitox::commands::Message, publish_addr: &Arc<Addr<T>>)
+where
+    T: Handler<NatsMessage, Result = ()> + Actor<Context = Context<T>>,
+{
     let reply_to = msg
         .reply_to
         .unwrap_or_else(|| BLACK_HOLE_SUBJECT.to_owned());
@@ -100,7 +105,10 @@ fn decode_message(msg: nitox::commands::Message, publish_addr: &Arc<Addr<NatsPub
     }
 }
 
-fn respond(reply_to: &str, publish_addr: &Arc<Addr<NatsPublishActor>>, job_id: Uuid) {
+fn respond<T>(reply_to: &str, publish_addr: &Arc<Addr<T>>, job_id: Uuid)
+where
+    T: Handler<NatsMessage, Result = ()> + Actor<Context = Context<T>>,
+{
     let response = Response {
         typ: ResponseType::Message,
         value: format!("Job with id {} added to queue.", job_id),
