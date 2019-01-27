@@ -26,7 +26,7 @@ pub struct Response {
 }
 
 #[serde(rename_all = "camelCase")]
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub enum ResponseType {
     Error,
     Message,

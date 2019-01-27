@@ -18,6 +18,11 @@ fn main() {
         nats_addr, subject
     );
 
-    Arbiter::spawn(initialize(connect_to_nats(nats_addr), subject).map_err(|_| ()));
+    Arbiter::spawn(
+        connect_to_nats(nats_addr)
+            .map_err(|_| ())
+            .and_then(|client| initialize(client, subject).map_err(|_| ())),
+    );
+
     System::new("execd-brain").run();
 }
