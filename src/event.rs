@@ -1,6 +1,3 @@
-extern crate nitox;
-extern crate serde;
-extern crate serde_json;
 use super::model::{JobRequest, Response, ResponseType};
 use actix::*;
 use futures::{future::ok, prelude::*};
@@ -13,6 +10,7 @@ use uuid::Uuid;
 const BLACK_HOLE_SUBJECT: &str = "blackhole";
 
 // create actor for nats messages
+#[derive(Debug)]
 pub enum NatsMessage {
     ForSubject { subject: String, message: String },
 }

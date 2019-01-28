@@ -1,6 +1,7 @@
 pub mod event;
 pub mod model;
 pub mod opt;
+mod store;
 
 use self::event::{handle_request, NatsPublishActor};
 use actix::*;
