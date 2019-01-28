@@ -1,9 +1,11 @@
+pub mod actor;
 pub mod event;
 pub mod model;
 pub mod opt;
 mod store;
 
-use self::event::{handle_request, NatsPublishActor};
+use self::actor::event::NatsPublishActor;
+use self::event::handle_request;
 use actix::*;
 use futures::prelude::*;
 use nitox::{commands::*, NatsClient, NatsError};

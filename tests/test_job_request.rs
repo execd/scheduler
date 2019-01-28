@@ -15,7 +15,7 @@ macro_rules! actor {
         mod $mod_name {
             use super::{JOB_ID, REPLY_TO};
             use actix::*;
-            use execd_brain::event::NatsMessage;
+            use execd_brain::actor::event::NatsMessage;
             use execd_brain::model::{Response, ResponseType};
             use serde_json::Result;
 
